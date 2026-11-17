@@ -50,7 +50,7 @@ h1{font-size:clamp(40px,7vw,84px);max-width:13ch}
 
 /* opis */
 section{padding:96px 0}
-.opis{display:grid;grid-template-columns:1.3fr 1fr;gap:80px;align-items:start}
+.opis{display:block}
 h2{font-size:clamp(32px,4.4vw,52px);margin-bottom:34px}
 .lead{font-size:19px;line-height:1.65;margin:0 0 18px}
 .note{color:var(--acc);font-weight:500}
@@ -59,7 +59,7 @@ h2{font-size:clamp(32px,4.4vw,52px);margin-bottom:34px}
 .group ul{margin:0;padding:0;list-style:none}
 .group li{padding:0 0 9px 18px;position:relative;color:#3a3a36}
 .group li::before{content:"";position:absolute;left:0;top:.78em;width:7px;height:1px;background:var(--acc)}
-.plan{position:sticky;top:92px;cursor:zoom-in}
+.plan{position:sticky;top:92px}
 .plan img{width:100%;border:1px solid var(--line);border-radius:6px;background:#fff;padding:12px}
 .plan small{display:block;margin-top:10px;color:var(--muted);font-size:13px}
 
@@ -110,7 +110,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);f
 .ck-link{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
 @media(max-width:640px){.ck{left:12px;right:12px;bottom:12px}}
 @media(max-width:900px){
- .opis{grid-template-columns:1fr;gap:48px}.plan{position:static}
+ 
  .facts{grid-template-columns:repeat(2,1fr)}.fact:nth-child(odd){border-left:0;padding-left:0}.fact{border-top:1px solid var(--line)}
  .mosaic{columns:2}.cover{aspect-ratio:4/3}
 }
@@ -120,11 +120,20 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);f
  .mosaic{column-gap:10px}.ph{margin-bottom:10px}.ph span{opacity:1;transform:none}
  .lb .pv,.lb .nx{top:auto;bottom:24px;margin:0}
 }
-.r3{padding:72px 0}.r3-box{position:relative;max-width:900px;margin:24px auto 0;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.r3-box img{display:block;width:100%;height:auto}.r3-box iframe{display:block;width:100%;height:min(78vh,620px);border:0}
-.btn-3d{position:absolute;right:16px;bottom:16px;background:var(--acc);color:#fff;border:0;border-radius:99px;padding:12px 22px;font:600 15px Inter,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.r3{padding:72px 0}.r3-box{position:relative;margin:0;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.r3-box img{display:block;width:100%;height:auto}.r3-box iframe{display:block;width:100%;height:min(76vh,600px);border:0}
+
 @media (max-width:820px),(pointer:coarse){.btn-3d,.r3-note.desk{display:none}}
+[hidden]{display:none!important}
 .r3-note{text-align:center;color:var(--muted);font-size:13px;margin-top:12px}
+.iso{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.iso figure{margin:0;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:zoom-in}
+.iso img{width:100%;height:auto;aspect-ratio:4/3;object-fit:contain;padding:10px;transition:transform .6s ease}
+.iso figure:hover img{transform:scale(1.03)}
+.r3-viewer{margin:0 0 14px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--bg)}
+.r3-viewer iframe{display:block;width:100%;height:min(76vh,640px);border:0}
+@media (max-width:820px),(pointer:coarse){#r3open{display:none}}
+@media(max-width:640px){.iso{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -191,18 +200,16 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);f
 
 <p style="margin-top:40px;color:var(--muted)">To idealny wybór dla rodzin lub par szukających funkcjonalnego, ciepłego mieszkania w spokojnej części miasta, z dostępem do pełnej infrastruktury oraz wygodnym dojazdem do Warszawy.</p>
 </div>
-<div class="plan" data-open="images/Rzut_Mieszkania.webp"><img src="images/Rzut_Mieszkania.webp" width="800" height="1143" alt="Plan mieszkania" loading="lazy" decoding="async"><small>Rzut mieszkania – kliknij, aby powiększyć</small></div>
+
 </div></section>
 
 <section id="rzut3d" class="r3"><div class="wrap">
-<div class="gal-head"><div><p class="label">Rzut 3D</p><h2>Układ mieszkania w izometrii</h2></div></div>
-<div class="r3-box" id="r3box">
-<img id="r3img" src="images/rzut-3d.webp" width="1000" height="957" alt="Rzut izometryczny 3D mieszkania 64,4 m²" loading="lazy" decoding="async">
-<iframe id="r3frame" title="Interaktywny rzut 3D" hidden></iframe>
-<button class="btn-3d" id="r3btn" type="button">Obracaj w 3D</button>
-</div>
-<p class="r3-note desk">Interaktywny model ładuje się dopiero po kliknięciu. Układ i meble są poglądowe.</p>
+<div class="gal-head"><div><p class="label">Rzut 3D</p><h2>Układ mieszkania z czterech stron</h2></div><button class="tab" id="r3open" type="button">Obracaj w 3D</button></div>
+<div class="r3-viewer" id="r3viewer" hidden><iframe id="r3frame" title="Interaktywny rzut 3D"></iframe></div>
+<div class="iso" id="iso"></div>
+<p class="r3-note">Wizualizacje poglądowe. Kliknij, aby powiększyć.</p>
 </div></section>
+
 
 
 <section id="kontakt" class="contact"><div class="wrap">
@@ -282,6 +289,10 @@ const saved=getC();
 if(saved==='granted'){gtag('consent','update',{analytics_storage:'granted'});loadGA()}
 else if(saved!=='denied'){ck.classList.add('open')}
 </script>
-<script>document.getElementById('r3btn').addEventListener('click',function(){if(matchMedia('(max-width:820px),(pointer:coarse)').matches)return;var f=document.getElementById('r3frame');f.src='rzut-3d.html';f.hidden=false;document.getElementById('r3img').hidden=true;this.hidden=true});</script>
+<script>const ISO=['rzut-iso-1.webp','rzut-iso-2.webp','rzut-iso-3.webp','rzut-iso-4.webp'].map((f,i)=>({src:'images/'+f,name:'Rzut 3D · widok '+(i+1)}));
+document.getElementById('iso').innerHTML=ISO.map((x,i)=>`<figure data-i="${i}"><img src="${x.src}" width="1200" height="900" alt="${x.name}" loading="lazy" decoding="async"></figure>`).join('');
+document.querySelectorAll('#iso figure').forEach(f=>f.onclick=()=>open(ISO,+f.dataset.i));
+document.getElementById('r3open').addEventListener('click',function(){if(matchMedia('(max-width:820px),(pointer:coarse)').matches)return;var v=document.getElementById('r3viewer'),f=document.getElementById('r3frame');if(v.hidden){f.src='rzut-3d.html';v.hidden=false;this.textContent='Zamknij 3D'}else{v.hidden=true;f.removeAttribute('src');this.textContent='Obracaj w 3D'}});
+</script>
 </body>
 </html>

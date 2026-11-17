@@ -308,6 +308,11 @@ function buildApartment(Hc) {
   sc.box(770, 40, 1115, 232, -0.1, 0.0, '#9aa0a4');          // balkon
   sc.box(120, -250, 1400, 1900, -0.06, -0.05, '#ffffff', { mat: 5, cast: false });
 
+
+  /* granica płytki / panele po skosie (od lodówki w stronę RTV) */
+  { const R = G.R3D.rgb, t = (ax, ay, bx, by, cx, cy, col, mat, ex) => { const P = (x, y) => [G.R3D.wx(x), 0.004, G.R3D.wz(y)]; sc.tri(P(ax, ay), P(bx, by), P(cx, cy), [0, 1, 0], R(col), mat, 0, ex); };
+    t(548, 755, 703, 755, 703, 819, '#c08a52', 1, [0, 0, 0, 0]);
+    t(703, 819, 838, 875, 703, 875, '#e6e2d8', 2, [0.6, 0, 0, 0]); }
   /* --- kolory ścian --- */
   const PE = '#d9a780', CR = '#f1e7d8', TI = '#eadfca', TL = '#0f8fa8', TP = '#8d776d', GRN = '#86b83f', MINT = '#dfe9d5';
 
@@ -365,7 +370,7 @@ function buildApartment(Hc) {
   if (full) sc.box(403 + 12, 840, 403 + 15, 935, 0, 2.02, '#24201e', { cast: false }); // drzwi wejściowe
 
   /* --- salon: szafka RTV na środku ściany + drewniana zabudowa z wazonem --- */
-  sc.box(905, 856, 1030, 874, 0, 2.3, '#6a3920');                                    // zabudowa
+  sc.box(905, 856, 1030, 874, 0, full ? 2.3 : 0.95, '#6a3920');                                    // zabudowa
   sc.box(890, 806, 1050, 856, 0.0, 0.82, '#4a2a1a');                                 // szafka RTV
   sc.box(895, 804, 1045, 806, 0.08, 0.7, '#f4f2ee', { cast: false });                // białe fronty
   sc.cyl(1010, 832, 8, 0.82, 1.18, '#e8efe4', { seg: 14 });                          // wazon
@@ -374,18 +379,24 @@ function buildApartment(Hc) {
   sc.box(1082, 310, 1086, 800, 0.95, 2.05, '#ffffff', { mat: 4, ex: [G.R3D.wz(310), (800 - 310) * G.R3D.S, 0.95, 1.1], cast: false });
 
   /* --- WC --- */
-  sc.cyl(452, 1052, 24, 0.0, 0.4, '#f4f1ea', { seg: 16 }); sc.box(415, 1022, 432, 1082, 0.0, 1.1, '#2f221b');
-  sc.box(415, 1010, 445, 1095, 1.55, 1.72, '#3a281f');
-  sc.box(548, 1092, 606, 1135, 0.0, 0.8, '#2f221b'); sc.box(552, 1096, 602, 1131, 0.8, 0.86, '#fbfbfb');
-  sc.box(550, 1134, 604, 1136, 1.1, 1.8, '#aebfc8', { cast: false });
+  sc.box(417, 1038, 445, 1066, 0.0, 0.78, '#fbfaf7'); sc.box(417, 1038, 445, 1066, 0.78, 0.82, '#e9e6df');   // spłuczka
+  sc.cyl(466, 1052, 20, 0.0, 0.42, '#fbfaf7', { seg: 16 }); sc.cyl(466, 1052, 15, 0.42, 0.44, '#d9e2e6', { seg: 16 });   // miska
+  sc.box(417, 1010, 440, 1030, 1.5, 1.8, '#c9b79a');                                                                  // półka
+  sc.box(550, 1096, 604, 1134, 0.0, 0.78, '#c9b08a'); sc.box(548, 1094, 606, 1136, 0.78, 0.82, '#fbfaf7');         // szafka z umywalką
+  sc.cyl(577, 1114, 15, 0.82, 0.86, '#dfe6e8', { seg: 14 }); sc.cyl(577, 1128, 2.2, 0.86, 1.0, '#c0c4c8', { seg: 6 });
+  sc.box(552, 1134, 602, 1136, 1.1, 1.8, '#aebfc8', { cast: false });                                               // lustro
 
   /* --- łazienka (bez słupka i mebla przy wejściu) --- */
-  sc.box(1008, 890, 1086, 1066, 0, 0.55, '#f8f8f7'); sc.box(1014, 896, 1080, 1060, 0.54, 0.57, '#dfe7ec', { cast: false });
+  sc.box(1008, 890, 1086, 1066, 0, 0.5, '#f8f8f7');
+  sc.box(1016, 898, 1078, 1058, 0.5, 0.56, '#f8f8f7', { cast: false }); sc.box(1020, 902, 1074, 1054, 0.5, 0.505, '#c9d8df', { cast: false });   // wnętrze wanny
+  sc.box(1008, 890, 1086, 898, 0.5, 0.6, '#f8f8f7'); sc.box(1008, 1058, 1086, 1066, 0.5, 0.6, '#f8f8f7'); sc.box(1008, 898, 1016, 1058, 0.5, 0.6, '#f8f8f7'); sc.box(1078, 898, 1086, 1058, 0.5, 0.6, '#f8f8f7');
+  sc.cyl(1047, 906, 3, 0.6, 0.8, '#b9bec2', { seg: 6 });                                                              // bateria
   sc.box(1008, 1036, 1012, 1066, 0.55, 1.5, '#cfe6f3', { mat: 3, ex: [0.35, 0, 0, 0], cast: false });
-  sc.box(850, 890, 915, 952, 0, 0.85, '#f4f4f3'); sc.box(852, 892, 913, 950, 0.85, 0.88, '#fff', { cast: false });   // pralka
-  sc.box(1022, 1072, 1086, 1132, 0, 0.8, '#f3f3f2'); sc.box(1028, 1078, 1082, 1128, 0.8, 0.85, '#fff');           // umywalka
-  sc.box(956, 1086, 1012, 1135, 0, 1.85, '#f6f6f5');                                                              // wysoka szafka
-  sc.box(1084, 1082, 1086, 1124, 1.1, 1.9, '#b7c7cf', { cast: false });                                          // lustro
+  sc.box(850, 890, 915, 952, 0, 0.85, '#f4f4f3'); sc.box(852, 892, 913, 950, 0.85, 0.88, '#fff', { cast: false }); sc.box(862, 950, 903, 952, 0.25, 0.7, '#3d4f5a', { cast: false }); sc.box(866, 951, 899, 953, 0.3, 0.65, '#8ea3ae', { cast: false });   // pralka z drzwiczkami
+  sc.box(905, 1092, 985, 1135, 0, 0.8, '#f3f3f2'); sc.box(905, 1092, 985, 1135, 0.8, 0.84, '#fff'); sc.cyl(945, 1112, 17, 0.84, 0.88, '#d9e2e6', { seg: 14 }); sc.cyl(945, 1128, 2.2, 0.88, 1.0, '#c0c4c8', { seg: 6 });           // umywalka obok słupka
+  sc.box(848, 1090, 903, 1135, 0, 1.85, '#f6f6f5');                                                              // słupek szafki przy drzwiach, naprzeciw pralki
+  sc.box(912, 1134, 978, 1136, 1.1, 1.9, '#b7c7cf', { cast: false });                                             // lustro nad umywalką
+  sc.box(1040, 1082, 1086, 1136, 0, 2.5, '#eadfca');                                                             // zabudowane kanały wentylacyjne w rogu
 
   /* --- pokój: łóżko przy ścianie zachodniej --- */
   sc.box(417, 1325, 524, 1568, 0.1, 0.32, '#f5f5f3'); sc.box(419, 1327, 522, 1566, 0.32, 0.56, '#e9d3a8');
@@ -402,6 +413,67 @@ function buildApartment(Hc) {
   sc.box(1084, 1160, 1086, 1292, 0, 2.5, '#11a5c2', { cast: false }); sc.box(1084, 1480, 1086, 1600, 0, 2.5, '#11a5c2', { cast: false });
   sc.box(1080, 1250, 1086, 1262, 1.0, 1.25, '#e8eef0', { cast: false }); sc.box(1080, 1504, 1086, 1516, 1.0, 1.25, '#e8eef0', { cast: false });
 
+
+  /* ================= wyposażenie i dekoracje ================= */
+  const box = (...a) => sc.box(...a);
+  const plant = (x, y, k, tall) => { k = k || 1; const t = tall ? 0.55 : 0;
+    sc.cyl(x, y, 13 * k, 0, 0.3 * k, '#ece7dd', { seg: 14 }); sc.cyl(x, y, 11 * k, 0.3 * k, 0.32 * k, '#4a3626', { seg: 12 });
+    if (tall) sc.cyl(x, y, 2.5, 0.32, 0.32 + t, '#6b4f36', { seg: 6 });
+    const R = [0.5, 0.82, 1, 0.97, 0.8, 0.52], g = ['#2f6b34', '#3a7f3b', '#4b9446', '#58a24d', '#4b9446', '#6bb55c'];
+    for (let i = 0; i < 6; i++) sc.cyl(x + (i % 3 - 1) * 1.5 * k, y + ((i + 1) % 3 - 1) * 1.5 * k, 25 * k * R[i], 0.32 + t + i * 0.1 * k, 0.32 + t + (i + 1) * 0.1 * k, g[i], { seg: 12 }); };
+  const chair = (x, y, dir, col, z) => { // dir – w którą stronę patrzy siedzisko: 'N','S','E','W'
+    z = z || 0; const h = 22, v = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[dir];
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) box(x + dx * (h - 3) - 2, y + dy * (h - 3) - 2, x + dx * (h - 3) + 2, y + dy * (h - 3) + 2, z, z + 0.43, '#5b4636');
+    box(x - h, y - h, x + h, y + h, z + 0.43, z + 0.49, col);
+    const bx = x - v[0] * (h - 3), by = y - v[1] * (h - 3);
+    box(bx - (v[0] ? 3 : h), by - (v[1] ? 3 : h), bx + (v[0] ? 3 : h), by + (v[1] ? 3 : h), z + 0.49, z + 0.95, col); };
+  const rug = (x1, y1, x2, y2, c) => { box(x1, y1, x2, y2, 0, 0.012, c, { cast: false }); box(x1 + 6, y1 + 6, x2 - 6, y2 - 6, 0.012, 0.016, c === '#efe8dc' ? '#e6ddcd' : c, { cast: false }); };
+
+  /* grzejniki pod oknami salonu */
+  for (const [a, b] of [[515, 625], [790, 940]]) { box(a, 256, b, 263, 0.18, 0.78, '#fbfbfa', { cast: false }); for (let x = a + 6; x < b - 4; x += 9) box(x, 256, x + 1.5, 263.5, 0.2, 0.76, '#e4e4e1', { cast: false }); }
+
+  /* salon: dywan, sofa, stolik, lampa, TV */
+  rug(830, 585, 1085, 790, '#efe8dc');
+  box(850, 525, 1072, 622, 0.08, 0.42, '#6483ad');                                   // siedzisko
+  box(850, 525, 1072, 548, 0.42, 0.92, '#5a769f');                                   // oparcie
+  box(850, 525, 874, 622, 0.42, 0.66, '#5a769f'); box(1048, 525, 1072, 622, 0.42, 0.66, '#5a769f');   // podłokietniki
+  for (let i = 0; i < 3; i++) box(876 + i * 57, 550, 876 + i * 57 + 55, 618, 0.42, 0.5, '#7592bd');
+  box(858, 552, 888, 570, 0.5, 0.85, '#e0a23a'); box(1030, 552, 1060, 570, 0.5, 0.85, '#c9544d'); box(985, 556, 1015, 572, 0.5, 0.8, '#f1ede4');
+  box(905, 665, 1015, 735, 0.05, 0.4, '#f4f1ea'); box(912, 672, 1008, 728, 0.4, 0.43, '#3f3a35');     // stolik kawowy
+  sc.cyl(960, 700, 11, 0.43, 0.62, '#e6b34a', { seg: 12 }); box(925, 690, 950, 712, 0.43, 0.46, '#2d5a8a'); box(928, 693, 947, 709, 0.46, 0.48, '#e8dfcf');
+  sc.cyl(1065, 700, 5, 0, 0.6, '#d8c3a0', { seg: 10 });
+  box(890, 806, 1050, 856, 0.82, 0.86, '#f4f2ee');                                   // blat szafki RTV
+  box(935, 818, 1005, 826, 0.86, 0.92, '#1b1b1d'); box(920, 814, 1020, 822, 0.92, 1.5, '#111214'); box(924, 813, 1016, 814.5, 0.96, 1.46, '#2a3340', { cast: false });   // telewizor
+  sc.cyl(905, 830, 6, 0.86, 1.0, '#d9d4c8', { seg: 10 });
+  sc.cyl(838, 560, 9, 0, 0.04, '#2a2a2a', { seg: 12 }); sc.cyl(838, 560, 1.6, 0.04, 1.6, '#c9a35a', { seg: 6 }); sc.cyl(838, 560, 19, 1.5, 1.8, '#f6ecd0', { seg: 14 });   // lampa
+  plant(868, 838, 1.0); plant(1062, 300, 1.2, true);
+
+  /* stół z krzesłami między grzejnikami */
+  box(618, 330, 702, 480, 0.7, 0.74, '#f3f0ea'); box(626, 338, 634, 346, 0, 0.7, '#8a6d4d'); box(686, 338, 694, 346, 0, 0.7, '#8a6d4d'); box(626, 464, 634, 472, 0, 0.7, '#8a6d4d'); box(686, 464, 694, 472, 0, 0.7, '#8a6d4d');
+  chair(578, 372, 'E', '#7da07f'); chair(578, 438, 'E', '#7da07f'); chair(742, 372, 'W', '#7da07f'); chair(742, 438, 'W', '#7da07f');
+  sc.cyl(660, 405, 9, 0.74, 0.86, '#ffffff', { seg: 10 }); box(640, 370, 656, 386, 0.74, 0.77, '#d56b3a'); box(668, 430, 684, 446, 0.74, 0.77, '#8aa38b');
+
+  /* sypialnia: pościel, poduszki, dywan */
+  rug(780, 1245, 1040, 1530, '#efe8dc');
+  box(852, 1300, 1010, 1472, 0.6, 0.72, '#f3f2ee');                                  // kołdra
+  box(1010, 1300, 1034, 1472, 0.6, 0.73, '#7c9d56');                                 // narzuta
+  box(1036, 1304, 1070, 1384, 0.6, 0.8, '#fbfbf9'); box(1036, 1388, 1070, 1468, 0.6, 0.8, '#fbfbf9');   // poduszki
+  box(1046, 1312, 1068, 1376, 0.8, 0.9, '#9aa5a0'); box(1046, 1396, 1068, 1460, 0.8, 0.9, '#9aa5a0');
+  box(1020, 1362, 1038, 1410, 0.73, 0.82, '#e07a3a');
+  sc.cyl(1062, 1258, 9, 0.45, 0.52, '#f3efe6', { seg: 12 }); sc.cyl(1062, 1514, 9, 0.45, 0.58, '#d9c9a8', { seg: 12 });
+  sc.cyl(1062, 1514, 16, 0.58, 0.78, '#f4ead2', { seg: 12 });
+  
+
+  /* pokój: biurko przy oknie, krzesło, laptop */
+  box(548, 1548, 668, 1606, 0.7, 0.74, '#d9c4a0'); box(550, 1550, 556, 1604, 0, 0.7, '#cdb48b'); box(660, 1550, 666, 1604, 0, 0.7, '#cdb48b');
+  chair(608, 1516, 'S', '#3d4a5a');
+  box(590, 1572, 628, 1596, 0.74, 0.76, '#b9bdc2'); box(590, 1596, 628, 1598, 0.76, 1.0, '#1f2328');
+  sc.cyl(655, 1560, 6, 0.74, 0.95, '#e0a23a', { seg: 8 });
+
+  /* balkon: stolik i dwa krzesła, rośliny */
+  sc.cyl(935, 135, 30, 0.5, 0.54, '#e6e3dc', { seg: 20 }); sc.cyl(935, 135, 4, 0, 0.5, '#444', { seg: 8 });
+  chair(935, 80, 'S', '#d9662b'); chair(935, 190, 'N', '#d9662b');
+  plant(795, 62, 1.0); plant(1098, 62, 1.0);
   return sc.finish();
 }
 function wxInv(m) { return m / G.R3D.S + G.R3D.OX; }
@@ -413,7 +485,7 @@ G.buildApartment = buildApartment;
 <script>
 (function(){
 const cv=document.getElementById('c'),msg=document.getElementById('msg'),st=document.getElementById('st');
-let Hc=0.95,az=-0.62,el=0.85,zoom=1,px=0,py=0,sc=null,sm=null,mural=null,tm=0,busy=false;
+let Hc=0.95,az=-0.62,el=0.85,zoom=1.3,px=0,py=0,sc=null,sm=null,mural=null,tm=0,busy=false;
 function build(){sc=buildApartment(Hc);sm=R3D.buildShadow(sc,2048);}
 function cam(W){const b=R3D.fitCam(sc,az,el,W,0.03);const c=R3D.makeCam(az,el,b.scale*zoom,W,b.H,[b.t[0]+b.r[0]*px+b.u[0]*py,b.t[1]+b.r[1]*px+b.u[1]*py,b.t[2]+b.r[2]*px+b.u[2]*py]);return c}
 function draw(hi){
@@ -432,7 +504,7 @@ st.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,
   if(drag.pan){px-=dx*0.004/zoom*2;py+=dy*0.004/zoom*2}else{az-=dx*0.008;el=Math.max(0.25,Math.min(1.5,el+dy*0.006))}
   if(!raf)raf=requestAnimationFrame(()=>{raf=0;quick()})});
 st.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(0.6,Math.min(4,zoom*(e.deltaY<0?1.12:0.89)));quick()},{passive:false});
-document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-v]').forEach(x=>x.classList.remove('on'));b.classList.add('on');if(b.dataset.v==='top'){az=-0.62;el=1.5}else{az=-0.62;el=0.85}px=py=0;zoom=1;quick()});
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-v]').forEach(x=>x.classList.remove('on'));b.classList.add('on');if(b.dataset.v==='top'){az=-0.62;el=1.5}else{az=-0.62;el=0.85}px=py=0;zoom=1.3;quick()});
 document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-m]').forEach(x=>x.classList.remove('on'));b.classList.add('on');Hc=b.dataset.m==='full'?2.5:0.95;build();quick()});
 document.getElementById('rs').onclick=()=>{az=-0.62;el=0.85;zoom=1;px=py=0;quick()};
 addEventListener('resize',()=>{clearTimeout(tm);tm=setTimeout(()=>draw(true),250)});
