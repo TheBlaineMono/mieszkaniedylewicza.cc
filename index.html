@@ -256,16 +256,20 @@ tabs.onclick=e=>{const b=e.target.closest('.tab');if(!b)return;cur=b.dataset.f;
 render();
 
 /* cookies + Google tag (Consent Mode v2) */
-const GA_ID='G-ZK6CRDFSYL'; // <- wstaw swój identyfikator pomiaru z Google Analytics
+const GA_ID='GTM-WZH5C8LV'; // GTM-XXXX (Tag Manager) lub G-XXXX (Google Analytics 4)
 window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}
 gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied'});
 const ck=$('#ck'),KEY='cookie-consent';
 const getC=()=>{try{return localStorage.getItem(KEY)}catch(e){return null}};
 const setC=v=>{try{localStorage.setItem(KEY,v)}catch(e){}};
 function loadGA(){
- if(window.__ga||!/^G-[A-Z0-9]{6,}$/.test(GA_ID)||GA_ID==='G-XXXXXXXXXX')return;window.__ga=1;
- const t=document.createElement('script');t.async=true;t.src='https://www.googletagmanager.com/gtag/js?id='+GA_ID;document.head.appendChild(t);
- gtag('js',new Date());gtag('config',GA_ID,{anonymize_ip:true});}
+ if(window.__ga)return;
+ const isGTM=/^GTM-[A-Z0-9]+$/.test(GA_ID),isGA=/^G-[A-Z0-9]{6,}$/.test(GA_ID);
+ if(!isGTM&&!isGA)return;window.__ga=1;
+ const t=document.createElement('script');t.async=true;
+ if(isGTM){dataLayer.push({'gtm.start':Date.now(),event:'gtm.js'});t.src='https://www.googletagmanager.com/gtm.js?id='+GA_ID}
+ else{t.src='https://www.googletagmanager.com/gtag/js?id='+GA_ID;gtag('js',new Date());gtag('config',GA_ID,{anonymize_ip:true})}
+ document.head.appendChild(t);}
 function clearGA(){
  document.cookie.split(';').forEach(c=>{const n=c.split('=')[0].trim();
   if(n==='_ga'||n.startsWith('_ga_')||n==='_gid'){['','.'+location.hostname].forEach(d=>document.cookie=`${n}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/${d?';domain='+d:''}`)}})}
