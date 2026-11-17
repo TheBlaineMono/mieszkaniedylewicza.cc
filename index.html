@@ -130,7 +130,7 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);f
 <body>
 <nav><div class="wrap nav-in">
 <a class="brand" href="#top">Dylewicza 64,4 m²</a>
-<div class="links"><a href="#opis">Opis</a><a href="#rzut3d">Rzut 3D</a><a href="#galeria">Galeria</a><a href="#kontakt">Kontakt</a><a class="tel" href="tel:+48781262987">781 262 987</a></div>
+<div class="links"><a href="#galeria">Galeria</a><a href="#opis">Opis</a><a href="#rzut3d">Rzut 3D</a><a href="#kontakt">Kontakt</a><a class="tel" href="tel:+48781262987">781 262 987</a></div>
 </div></nav>
 
 <main id="top">
@@ -147,6 +147,11 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);f
 <div class="fact"><b>Własność</b><span>księga wieczysta</span></div>
 </div>
 </div></header>
+
+<section id="galeria" class="gal"><div class="wrap">
+<div class="gal-head"><div><p class="label">Galeria</p><h2>Zobacz każde pomieszczenie</h2></div><div class="tabs" id="tabs"></div></div>
+<div class="mosaic" id="mosaic"></div>
+</div></section>
 
 <section id="opis"><div class="wrap opis">
 <div>
@@ -186,23 +191,19 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);f
 
 <p style="margin-top:40px;color:var(--muted)">To idealny wybór dla rodzin lub par szukających funkcjonalnego, ciepłego mieszkania w spokojnej części miasta, z dostępem do pełnej infrastruktury oraz wygodnym dojazdem do Warszawy.</p>
 </div>
-<div class="plan" data-open="images/Rzut_Mieszkania.webp"><img src="images/Rzut_Mieszkania.webp" alt="Plan mieszkania" loading="lazy"><small>Rzut mieszkania – kliknij, aby powiększyć</small></div>
+<div class="plan" data-open="images/Rzut_Mieszkania.webp"><img src="images/Rzut_Mieszkania.webp" width="800" height="1143" alt="Plan mieszkania" loading="lazy" decoding="async"><small>Rzut mieszkania – kliknij, aby powiększyć</small></div>
 </div></section>
 
 <section id="rzut3d" class="r3"><div class="wrap">
 <div class="gal-head"><div><p class="label">Rzut 3D</p><h2>Układ mieszkania w izometrii</h2></div></div>
 <div class="r3-box" id="r3box">
-<img id="r3img" src="images/rzut-3d.webp" width="1222" height="1170" alt="Rzut izometryczny 3D mieszkania 64,4 m²" loading="lazy" decoding="async">
+<img id="r3img" src="images/rzut-3d.webp" width="1000" height="957" alt="Rzut izometryczny 3D mieszkania 64,4 m²" loading="lazy" decoding="async">
 <iframe id="r3frame" title="Interaktywny rzut 3D" hidden></iframe>
 <button class="btn-3d" id="r3btn" type="button">Obracaj w 3D</button>
 </div>
 <p class="r3-note desk">Interaktywny model ładuje się dopiero po kliknięciu. Układ i meble są poglądowe.</p>
 </div></section>
 
-<section id="galeria" class="gal"><div class="wrap">
-<div class="gal-head"><div><p class="label">Galeria</p><h2>Zobacz każde pomieszczenie</h2></div><div class="tabs" id="tabs"></div></div>
-<div class="mosaic" id="mosaic"></div>
-</div></section>
 
 <section id="kontakt" class="contact"><div class="wrap">
 <p class="label">Kontakt</p>
