@@ -1,0 +1,441 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rzut 3D – Dylewicza</title>
+<style>
+:root{--bg:#faf7f2;--text:#1f2a2e;--acc:#b4572f;--line:#e6e0d6}
+@media (prefers-color-scheme:dark){:root{--bg:#161b1d;--text:#eee9e1;--acc:#e08a5f;--line:#30393c}}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:500 14px Inter,system-ui,sans-serif}
+#w{position:relative;height:100%;display:flex;flex-direction:column}
+#st{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:grab}
+canvas{max-width:100%;max-height:100%;display:block}
+#bar{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:10px;border-top:1px solid var(--line)}
+button{font:inherit;padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer}
+button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+#msg{position:absolute;top:10px;left:12px;font-size:12px;opacity:.7}
+</style></head><body><div id="w"><div id="msg">Wczytuję model…</div><div id="st"><canvas id="c"></canvas></div>
+<div id="bar"><button data-v="iso" class="on">Izometria</button><button data-v="top">Z góry</button><button data-m="cut" class="on">Przekrój</button><button data-m="full">Pełne ściany</button><button id="rs">Reset</button></div></div>
+<script>/* Minimalny renderer 3D (rzut ortogonalny, z-bufor, cienie, SSAO) – bez zależności zewnętrznych */
+(function (G) {
+'use strict';
+const S = 1 / 118, OX = 415, OY = 232;
+const wx = p => (p - OX) * S, wz = p => (p - OY) * S;
+
+/* ---------- kolory ---------- */
+const cc = {};
+function rgb(c) {
+  if (Array.isArray(c)) return c;
+  if (cc[c]) return cc[c];
+  let h = c.replace('#', ''); if (h.length === 3) h = h.replace(/./g, m => m + m);
+  return (cc[c] = [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255]);
+}
+
+/* ---------- scena ---------- */
+function Scene() { this.P = []; this.N = []; this.C = []; this.M = []; this.F = []; this.E = []; }
+Scene.prototype.tri = function (a, b, c, n, col, mat, fl, ex) {
+  this.P.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+  this.N.push(n[0], n[1], n[2]); this.C.push(col[0], col[1], col[2]);
+  this.M.push(mat); this.F.push(fl); this.E.push(ex[0], ex[1], ex[2], ex[3]);
+};
+Scene.prototype.quad = function (a, b, c, d, n, col, mat, fl, ex) { this.tri(a, b, c, n, col, mat, fl, ex); this.tri(a, c, d, n, col, mat, fl, ex); };
+/* box w jednostkach rzutu (x,y planu), wysokość w metrach. cols: kolor lub tablica 6 (+X,-X,+Y,-Y,+Z,-Z) */
+Scene.prototype.box = function (x1, y1, x2, y2, z0, z1, cols, o) {
+  o = o || {};
+  if (x2 < x1) { const t = x1; x1 = x2; x2 = t; } if (y2 < y1) { const t = y1; y1 = y2; y2 = t; }
+  if (z1 - z0 < 1e-5) return;
+  const X0 = wx(x1), X1 = wx(x2), Z0 = wz(y1), Z1 = wz(y2);
+  const fc = i => rgb(Array.isArray(cols) && typeof cols[0] !== 'number' ? (cols[i] || cols[2]) : cols);
+  const mat = o.mat || 0, ex = o.ex || [0, 0, 0, 0];
+  const fl = (o.cast === false ? 0 : 1) | (mat === 3 ? 2 : 0) | (mat === 5 ? 4 : 0);
+  const mt = o.topMat === undefined ? mat : o.topMat;
+  this.quad([X1, z0, Z0], [X1, z0, Z1], [X1, z1, Z1], [X1, z1, Z0], [1, 0, 0], fc(0), mat, fl, ex);
+  this.quad([X0, z0, Z1], [X0, z0, Z0], [X0, z1, Z0], [X0, z1, Z1], [-1, 0, 0], fc(1), mat, fl, ex);
+  this.quad([X0, z1, Z0], [X1, z1, Z0], [X1, z1, Z1], [X0, z1, Z1], [0, 1, 0], fc(2), mt, fl, ex);
+  this.quad([X0, z0, Z1], [X1, z0, Z1], [X1, z1, Z1], [X0, z1, Z1], [0, 0, 1], fc(4), mat, fl, ex);
+  this.quad([X1, z0, Z0], [X0, z0, Z0], [X0, z1, Z0], [X1, z1, Z0], [0, 0, -1], fc(5), mat, fl, ex);
+};
+Scene.prototype.cyl = function (cx, cy, r, z0, z1, col, o) {
+  o = o || {}; const seg = o.seg || 18, c = rgb(col), X = wx(cx), Z = wz(cy), R = r * S, mat = o.mat || 0, ex = o.ex || [0, 0, 0, 0];
+  for (let i = 0; i < seg; i++) {
+    const a0 = i / seg * Math.PI * 2, a1 = (i + 1) / seg * Math.PI * 2, am = (a0 + a1) / 2;
+    const p0 = [X + Math.cos(a0) * R, 0, Z + Math.sin(a0) * R], p1 = [X + Math.cos(a1) * R, 0, Z + Math.sin(a1) * R];
+    const n = [Math.cos(am), 0, Math.sin(am)];
+    this.quad([p0[0], z0, p0[2]], [p1[0], z0, p1[2]], [p1[0], z1, p1[2]], [p0[0], z1, p0[2]], n, c, mat, 1, ex);
+    this.tri([X, z1, Z], [p0[0], z1, p0[2]], [p1[0], z1, p1[2]], [0, 1, 0], c, mat, 1, ex);
+  }
+};
+Scene.prototype.finish = function () {
+  const n = this.M.length;
+  this.n = n; this.pos = new Float32Array(this.P); this.nrm = new Float32Array(this.N); this.col = new Float32Array(this.C);
+  this.mat = new Uint8Array(this.M); this.fl = new Uint8Array(this.F); this.ex = new Float32Array(this.E);
+  let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  for (let i = 0; i < this.pos.length; i += 3) if (this.mat[i / 3 | 0] !== 5) for (let k = 0; k < 3; k++) { const v = this.pos[i + k]; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
+  this.min = mn; this.max = mx; this.P = this.N = this.C = this.M = this.F = this.E = null;
+  return this;
+};
+
+/* ---------- teksturka muralu ---------- */
+function muralTex() {
+  const W = 512, H = 128, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, H);
+  gr.addColorStop(0, '#16235e'); gr.addColorStop(.5, '#e9833c'); gr.addColorStop(.66, '#3a4f8a'); gr.addColorStop(1, '#0f1838');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#10152b'; for (let i = 0; i < 60; i++) { const x = i * 9 + (i * 37 % 7), h = 14 + (i * 53 % 30); g.fillRect(x, 78 - h * .3, 8, h); }
+  g.fillStyle = '#f7c76a'; for (let i = 0; i < 120; i++) g.fillRect((i * 97) % W, 70 + (i * 31) % 22, 1.5, 1.5);
+  g.strokeStyle = '#0a0d1d'; g.fillStyle = '#0a0d1d'; g.lineWidth = 5;
+  g.beginPath(); g.moveTo(0, 74); g.quadraticCurveTo(256, 4, 512, 74); g.stroke();
+  g.lineWidth = 1.5; for (let i = 8; i < 512; i += 16) { const t = i / 512, y = 74 - 4 * 70 * t * (1 - t) * .5 * 2 * .5 * 2; g.beginPath(); g.moveTo(i, y + 2); g.lineTo(i, 86); g.stroke(); }
+  g.fillRect(118, 20, 10, 70); g.fillRect(386, 20, 10, 70); g.fillRect(0, 86, 512, 4);
+  return { w: W, h: H, d: g.getImageData(0, 0, W, H).data };
+}
+
+/* ---------- kamera ---------- */
+function makeCam(az, el, scale, W, H, t) {
+  const ce = Math.cos(el), c = [ce * Math.sin(az), Math.sin(el), ce * Math.cos(az)];
+  let r = [c[2], 0, -c[0]]; const rl = Math.hypot(r[0], r[2]); r = [r[0] / rl, 0, r[2] / rl];
+  const u = [c[1] * r[2] - c[2] * r[1], c[2] * r[0] - c[0] * r[2], c[0] * r[1] - c[1] * r[0]];
+  return { c, r, u, t, scale, W, H };
+}
+function fitCam(sc, az, el, W, margin) {
+  const c0 = makeCam(az, el, 1, 1, 1, [0, 0, 0]); let a = 1e9, b = -1e9, d = 1e9, e = -1e9;
+  const mn = sc.min, mx = sc.max;
+  for (let i = 0; i < 8; i++) {
+    const p = [i & 1 ? mx[0] : mn[0], i & 2 ? mx[1] : mn[1], i & 4 ? mx[2] : mn[2]];
+    const x = p[0] * c0.r[0] + p[1] * c0.r[1] + p[2] * c0.r[2], y = p[0] * c0.u[0] + p[1] * c0.u[1] + p[2] * c0.u[2];
+    if (x < a) a = x; if (x > b) b = x; if (y < d) d = y; if (y > e) e = y;
+  }
+  const scale = W * (1 - 2 * margin) / (b - a), H = Math.ceil((e - d) * scale + W * margin * 2);
+  const cx = (a + b) / 2, cy = (d + e) / 2;
+  const t = [c0.r[0] * cx + c0.u[0] * cy, c0.r[1] * cx + c0.u[1] * cy, c0.r[2] * cx + c0.u[2] * cy];
+  return makeCam(az, el, scale, W, H, t);
+}
+
+/* ---------- światło i cień ---------- */
+const LV = (() => { const v = [-0.55, 0.80, 0.30], l = Math.hypot(...v); return [v[0] / l, v[1] / l, v[2] / l]; })();
+const FILL = (() => { const v = [0.45, 0.55, 0.70], l = Math.hypot(...v); return [v[0] / l, v[1] / l, v[2] / l]; })();
+function buildShadow(sc, size) {
+  const c = makeCam(Math.atan2(LV[0], LV[2]), Math.asin(LV[1]), 1, 1, 1, [0, 0, 0]);
+  const L = c.c, R = c.r, U = c.u, P = sc.pos;
+  let a = 1e9, b = -1e9, d = 1e9, e = -1e9;
+  for (let i = 0; i < P.length; i += 3) {
+    const x = P[i] * R[0] + P[i + 1] * R[1] + P[i + 2] * R[2], y = P[i] * U[0] + P[i + 1] * U[1] + P[i + 2] * U[2];
+    if (x < a) a = x; if (x > b) b = x; if (y < d) d = y; if (y > e) e = y;
+  }
+  const pad = 0.5; a -= pad; d -= pad; b += pad; e += pad;
+  const sca = size / Math.max(b - a, e - d), map = new Float32Array(size * size).fill(-1e9);
+  const tris = sc.n, fl = sc.fl, pos = sc.pos;
+  for (let t = 0; t < tris; t++) {
+    if (!(fl[t] & 1)) continue;
+    const o = t * 9, X = [0, 0, 0], Y = [0, 0, 0], D = [0, 0, 0];
+    for (let k = 0; k < 3; k++) {
+      const px = pos[o + k * 3], py = pos[o + k * 3 + 1], pz = pos[o + k * 3 + 2];
+      X[k] = (px * R[0] + py * R[1] + pz * R[2] - a) * sca; Y[k] = (px * U[0] + py * U[1] + pz * U[2] - d) * sca; D[k] = px * L[0] + py * L[1] + pz * L[2];
+    }
+    const ar = (X[1] - X[0]) * (Y[2] - Y[0]) - (X[2] - X[0]) * (Y[1] - Y[0]); if (Math.abs(ar) < 1e-9) continue; const ia = 1 / ar;
+    const x0 = Math.max(0, Math.floor(Math.min(X[0], X[1], X[2]))), x1 = Math.min(size - 1, Math.ceil(Math.max(X[0], X[1], X[2])));
+    const y0 = Math.max(0, Math.floor(Math.min(Y[0], Y[1], Y[2]))), y1 = Math.min(size - 1, Math.ceil(Math.max(Y[0], Y[1], Y[2])));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const px = x + .5, py = y + .5;
+      const w0 = ((X[1] - px) * (Y[2] - py) - (X[2] - px) * (Y[1] - py)) * ia, w1 = ((X[2] - px) * (Y[0] - py) - (X[0] - px) * (Y[2] - py)) * ia, w2 = 1 - w0 - w1;
+      if (w0 < -1e-4 || w1 < -1e-4 || w2 < -1e-4) continue;
+      const dd = w0 * D[0] + w1 * D[1] + w2 * D[2], i = y * size + x; if (dd > map[i]) map[i] = dd;
+    }
+  }
+  return { map, size, a, d, sca, R, U, L };
+}
+const POI = []; (function () { for (let i = 0; i < 16; i++) { const r = Math.sqrt((i + .5) / 16), t = i * 2.399963; POI.push([Math.cos(t) * r, Math.sin(t) * r]); } })();
+function shadowAt(sm, x, y, z, soft) {
+  const R = sm.R, U = sm.U, L = sm.L, size = sm.size;
+  const sx = (x * R[0] + y * R[1] + z * R[2] - sm.a) * sm.sca, sy = (x * U[0] + y * U[1] + z * U[2] - sm.d) * sm.sca;
+  const dd = x * L[0] + y * L[1] + z * L[2] - 0.018, map = sm.map;
+  let lit = 0; const n = soft ? 16 : 4, rad = soft ? 2.6 : 1.2;
+  for (let i = 0; i < n; i++) {
+    const o = POI[soft ? i : i * 4], ix = (sx + o[0] * rad) | 0, iy = (sy + o[1] * rad) | 0;
+    if (ix < 0 || iy < 0 || ix >= size || iy >= size) { lit++; continue; }
+    if (dd >= map[iy * size + ix]) lit++;
+  }
+  return lit / n;
+}
+
+/* ---------- materiały proceduralne ---------- */
+function hash(n) { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }
+function woodCol(x, z, base, out) {
+  const pw = 0.19, k = Math.floor(x / pw), fx = x / pw - k, off = hash(k) * 1.3, zz = z + off, j = Math.floor(zz / 1.3), fz = zz / 1.3 - j;
+  let v = 1 + (hash(k * 13.7 + j * 7.3) - .5) * .14;
+  v *= 1 + Math.sin(x * 90 + hash(k) * 6) * .018 + Math.sin(z * 11 + k) * .012;
+  if (fx < .035 || fx > .985) v *= .72; if (fz < .008) v *= .72;
+  out[0] = base[0] * v; out[1] = base[1] * v; out[2] = base[2] * v;
+}
+function tileCol(x, z, base, g, out) {
+  const fx = (x / g) % 1, fz = (z / g) % 1, ax = fx < 0 ? fx + 1 : fx, az = fz < 0 ? fz + 1 : fz;
+  let v = 1 + (1 - Math.abs(ax - .5) * 2) * .0 + (hash(Math.floor(x / g) * 3.1 + Math.floor(z / g) * 5.7) - .5) * .035;
+  if (ax < .01 || ax > .99 || az < .01 || az > .99) v *= .84;
+  out[0] = base[0] * v; out[1] = base[1] * v; out[2] = base[2] * v;
+}
+
+/* ---------- renderer ---------- */
+function render(sc, cam, o) {
+  o = o || {};
+  const W = cam.W, H = cam.H, ss = o.ss || 1, ao = o.ao !== false, soft = o.soft !== false, bands = o.bands || 1;
+  const sm = o.shadow || buildShadow(sc, o.shadowSize || 2048), out = new Uint8ClampedArray(W * H * 4);
+  const mural = o.mural, sca = cam.scale * ss, R = cam.r, U = cam.u, C = cam.c, T = cam.t;
+  const rows = Math.ceil(H / bands), AOPX = ao ? Math.min(60, Math.ceil(0.32 * sca)) : 0, pad = Math.ceil(AOPX / ss) + 1;
+  const pos = sc.pos, nrm = sc.nrm, col = sc.col, mat = sc.mat, fl = sc.fl, ex = sc.ex, nt = sc.n;
+  const tmp = [0, 0, 0];
+  for (let band = 0; band < bands; band++) {
+    const y0 = band * rows, y1 = Math.min(H, y0 + rows); if (y0 >= y1) break;
+    const yA = Math.max(0, y0 - pad), yB = Math.min(H, y1 + pad), bw = W * ss, bh = (yB - yA) * ss, off = yA * ss;
+    const Z = new Float32Array(bw * bh).fill(-1e9), ID = new Uint16Array(bw * bh).fill(65535);
+    const GZ = new Float32Array(bw * bh).fill(-1e9), GI = new Uint16Array(bw * bh).fill(65535);
+    for (let pass = 0; pass < 2; pass++) for (let t = 0; t < nt; t++) {
+      const glass = (fl[t] & 2) !== 0; if ((pass === 1) !== glass) continue;
+      const n0 = nrm[t * 3], n1 = nrm[t * 3 + 1], n2 = nrm[t * 3 + 2];
+      if (n0 * C[0] + n1 * C[1] + n2 * C[2] <= 0 && !glass) continue;
+      const p = t * 9, X = [0, 0, 0], Y = [0, 0, 0], D = [0, 0, 0];
+      for (let k = 0; k < 3; k++) {
+        const dx = pos[p + k * 3] - T[0], dy = pos[p + k * 3 + 1] - T[1], dz = pos[p + k * 3 + 2] - T[2];
+        X[k] = bw / 2 + (dx * R[0] + dy * R[1] + dz * R[2]) * sca; Y[k] = ((H * ss) / 2 - (dx * U[0] + dy * U[1] + dz * U[2]) * sca) - off; D[k] = dx * C[0] + dy * C[1] + dz * C[2];
+      }
+      const ar = (X[1] - X[0]) * (Y[2] - Y[0]) - (X[2] - X[0]) * (Y[1] - Y[0]); if (Math.abs(ar) < 1e-9) continue; const ia = 1 / ar;
+      const xa = Math.max(0, Math.floor(Math.min(X[0], X[1], X[2]))), xb = Math.min(bw - 1, Math.ceil(Math.max(X[0], X[1], X[2])));
+      const ya = Math.max(0, Math.floor(Math.min(Y[0], Y[1], Y[2]))), yb = Math.min(bh - 1, Math.ceil(Math.max(Y[0], Y[1], Y[2])));
+      for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) {
+        const px = x + .5, py = y + .5;
+        const w0 = ((X[1] - px) * (Y[2] - py) - (X[2] - px) * (Y[1] - py)) * ia, w1 = ((X[2] - px) * (Y[0] - py) - (X[0] - px) * (Y[2] - py)) * ia, w2 = 1 - w0 - w1;
+        if (w0 < -1e-5 || w1 < -1e-5 || w2 < -1e-5) continue;
+        const d = w0 * D[0] + w1 * D[1] + w2 * D[2], i = y * bw + x;
+        if (!glass) { if (d > Z[i]) { Z[i] = d; ID[i] = t; } }
+        else if (d > Z[i] && d > GZ[i]) { GZ[i] = d; GI[i] = t; }
+      }
+    }
+    /* cieniowanie */
+    const ns = ss * ss, ox = (v, i) => v;
+    for (let y = y0; y < y1; y++) for (let x = 0; x < W; x++) {
+      let ar = 0, ag = 0, ab = 0, aa = 0;
+      for (let sy = 0; sy < ss; sy++) for (let sx = 0; sx < ss; sx++) {
+        const bx = x * ss + sx, by = (y - yA) * ss + sy, i = by * bw + bx, id = ID[i], gid = GI[i];
+        let r = 0, g = 0, b = 0, a = 0;
+        if (id !== 65535) {
+          const z = Z[i], m = mat[id], n0 = nrm[id * 3], n1 = nrm[id * 3 + 1], n2 = nrm[id * 3 + 2];
+          const sxp = (bx + .5 - bw / 2) / sca, syp = ((H * ss) / 2 - (by + off + .5)) / sca;
+          const wxp = T[0] + R[0] * sxp + U[0] * syp + C[0] * z, wyp = T[1] + R[1] * sxp + U[1] * syp + C[1] * z, wzp = T[2] + R[2] * sxp + U[2] * syp + C[2] * z;
+          let ar_ = col[id * 3], ag_ = col[id * 3 + 1], ab_ = col[id * 3 + 2];
+          const shd = shadowAt(sm, wxp + n0 * .012, wyp + n1 * .012, wzp + n2 * .012, soft);
+          if (m === 5) { r = g = b = 0.05; a = (1 - shd) * 0.30; }
+          else {
+            if (m === 1) { tmp[0] = ar_; woodCol(wxp, wzp, [ar_, ag_, ab_], tmp); ar_ = tmp[0]; ag_ = tmp[1]; ab_ = tmp[2]; }
+            else if (m === 2) { tileCol(wxp, wzp, [ar_, ag_, ab_], ex[id * 4] || 0.6, tmp); ar_ = tmp[0]; ag_ = tmp[1]; ab_ = tmp[2]; }
+            else if (m === 4 && mural) {
+              const u = Math.min(1, Math.max(0, (wzp - ex[id * 4]) / ex[id * 4 + 1])), v = Math.min(1, Math.max(0, 1 - (wyp - ex[id * 4 + 2]) / ex[id * 4 + 3]));
+              const q = ((v * (mural.h - 1) | 0) * mural.w + (u * (mural.w - 1) | 0)) * 4; ar_ = mural.d[q] / 255; ag_ = mural.d[q + 1] / 255; ab_ = mural.d[q + 2] / 255;
+            }
+            let aoo = 1;
+            if (ao) {
+              let occ = 0; const rot = hash(bx * 0.37 + by * 1.91) * 6.283, cr = Math.cos(rot), sr = Math.sin(rot);
+              for (let k = 0; k < 10; k++) {
+                const q = POI[k * 1 + (k > 15 ? 0 : 0)], rr = AOPX * (0.25 + 0.75 * Math.sqrt((k + .5) / 10)), ang = k * 2.399963 + rot;
+                const dx = Math.round(Math.cos(ang) * rr), dy = Math.round(Math.sin(ang) * rr), nx = bx + dx, ny = by + dy;
+                if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue;
+                const j = ny * bw + nx; if (ID[j] === 65535) continue;
+                const dz = Z[j] - z, vx = R[0] * dx / sca - U[0] * dy / sca + C[0] * dz, vy = R[1] * dx / sca - U[1] * dy / sca + C[1] * dz, vz = R[2] * dx / sca - U[2] * dy / sca + C[2] * dz;
+                const dist = Math.hypot(vx, vy, vz), dn = (vx * n0 + vy * n1 + vz * n2); if (dn > 0.035 && dist < 0.34) occ += (1 - dist / 0.34) * Math.min(1, dn / dist * 1.4);
+              }
+              aoo = 1 - 0.85 * occ / 10 * 2.2; if (aoo < .35) aoo = .35;
+            }
+            const ndl = Math.max(0, n0 * LV[0] + n1 * LV[1] + n2 * LV[2]), nf = Math.max(0, n0 * FILL[0] + n1 * FILL[1] + n2 * FILL[2]), hemi = .5 + .5 * n1;
+            const amb = (0.46 + 0.30 * hemi) * aoo, dir = ndl * shd * 0.62 * (0.55 + 0.45 * aoo), fil = nf * 0.17 * aoo;
+            r = ar_ * (amb * .97 + dir * 1.0 + fil); g = ag_ * (amb * .98 + dir * .96 + fil); b = ab_ * (amb * 1.02 + dir * .90 + fil * 1.02);
+            a = 1;
+          }
+        }
+        if (gid !== 65535) {
+          const ga = ex[gid * 4] || 0.3, gc = col[gid * 3], gg = col[gid * 3 + 1], gb = col[gid * 3 + 2];
+          if (a > 0) { r = r * (1 - ga) + gc * ga; g = g * (1 - ga) + gg * ga; b = b * (1 - ga) + gb * ga; }
+          else { r = gc; g = gg; b = gb; a = ga; }
+        }
+        ar += r * a; ag += g * a; ab += b * a; aa += a;
+      }
+      const q = (y * W + x) * 4;
+      if (aa > 0) { out[q] = ar / aa * 255; out[q + 1] = ag / aa * 255; out[q + 2] = ab / aa * 255; out[q + 3] = aa / ns * 255; }
+    }
+  }
+  return out;
+}
+
+G.R3D = { Scene, makeCam, fitCam, buildShadow, render, muralTex, rgb, wx, wz, S, OX, OY, LV };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script><script>/* Model mieszkania 64,4 m², ul. Dylewicza – współrzędne w jednostkach rzutu (px) i metrach (wysokość) */
+(function (G) {
+'use strict';
+const { Scene } = G.R3D, H = 2.5;
+const EX = '#d9d4cb', CAP = '#f6f4f0';
+const wall = (sc, Hc, hz, f, a, b, t, cA, cB, ops) => {
+  const top = Math.min(H, Hc), cols = hz ? [CAP, CAP, CAP, null, cB, cA] : [cB, cA, CAP, null, CAP, CAP];
+  const bx = (p, q, z0, z1, c, o) => {
+    z1 = Math.min(z1, top); if (z1 <= z0 + 1e-5) return;
+    const cl = c || cols;
+    if (hz) sc.box(p, f - t / 2, q, f + t / 2, z0, z1, cl, o); else sc.box(f - t / 2, p, f + t / 2, q, z0, z1, cl, o);
+  };
+  let p = a; (ops || []).slice().sort((u, v) => u[0] - v[0]);
+  for (const [s, e, k] of (ops || [])) {
+    if (s > p) bx(p, s, -0.02, H);
+    if (k === 'd') bx(s, e, 2.05, H);
+    else {
+      const z0 = k === 'w' ? 0.9 : 0, m = (s + e) / 2;
+      bx(s, e, 2.1, H); if (k === 'w') bx(s, e, -0.02, 0.9);
+      bx(s, e, z0, 2.1, '#cfe6f3', { mat: 3, ex: [0.28, 0, 0, 0], cast: false });
+      const fr = '#fbfbfa';
+      [[s, s + 5], [e - 5, e], [m - 2.5, m + 2.5]].forEach(([u, v]) => bx(u, v, z0, 2.1, fr, { cast: false }));
+      bx(s, e, z0, z0 + 0.05, fr); bx(s, e, 2.05, 2.1, fr);
+    }
+    p = e;
+  }
+  if (b > p) bx(p, b, -0.02, H);
+};
+
+function buildApartment(Hc) {
+  const sc = new Scene(), full = Hc >= 2.4;
+  const WD = (c) => c, F = (x1, y1, x2, y2, c, mat, g) => sc.box(x1, y1, x2, y2, -0.03, 0, c, { mat: 0, topMat: mat, ex: [g || 0, 0, 0, 0] });
+
+  /* --- podłogi --- */
+  F(415, 255, 548, 755, '#e4e0d6', 2, 0.6);                 // kuchnia – płytki
+  F(548, 255, 1090, 755, '#c08a52', 1);                      // salon – panele
+  F(703, 755, 1090, 875, '#c08a52', 1);
+  F(415, 755, 703, 1143, '#e6e2d8', 2, 0.6);                 // przedpokój
+  F(703, 875, 838, 1143, '#e6e2d8', 2, 0.6);
+  F(415, 982, 608, 1136, '#efe6d3', 2, 0.3);                 // WC
+  F(845, 882, 1086, 1136, '#ddd5c5', 2, 0.45);               // łazienka
+  F(415, 1150, 718, 1611, '#bd8e58', 1);                     // pokój
+  F(732, 1150, 1086, 1611, '#a07c52', 1);                    // sypialnia
+  sc.box(770, 40, 1115, 232, -0.1, 0.0, '#9aa0a4');          // balkon
+  sc.box(120, -250, 1400, 1900, -0.06, -0.05, '#ffffff', { mat: 5, cast: false });
+
+  /* --- kolory ścian --- */
+  const PE = '#d9a780', CR = '#f1e7d8', TI = '#eadfca', TL = '#0f8fa8', TP = '#8d776d', GRN = '#86b83f', MINT = '#dfe9d5';
+
+  /* --- ściany zewnętrzne --- */
+  wall(sc, Hc, true, 243, 403, 1101, 24, EX, PE, [[500, 640, 'w'], [770, 960, 'w'], [972, 1080, 'g']]);
+  wall(sc, Hc, false, 1098, 231, 870, 24, TL, EX);
+  wall(sc, Hc, false, 1098, 870, 1143, 24, TI, EX);
+  wall(sc, Hc, false, 1098, 1143, 1630, 24, '#f2f2ee', EX);
+  wall(sc, Hc, true, 1618, 403, 725, 24, MINT, EX, [[495, 640, 'w']]);
+  wall(sc, Hc, true, 1618, 725, 1101, 24, TP, EX, [[810, 985, 'w']]);
+  wall(sc, Hc, false, 403, 231, 748, 24, EX, PE);
+  wall(sc, Hc, false, 403, 748, 1143, 24, EX, CR, [[835, 940, 'd']]);
+  wall(sc, Hc, false, 403, 1143, 1630, 24, EX, GRN);
+
+  /* --- ściany wewnętrzne --- */
+  wall(sc, Hc, true, 875, 838, 1098, 14, PE, TI);              // salon / łazienka (przedpokój otwarty na salon)
+  wall(sc, Hc, false, 838, 875, 1143, 14, CR, TI, [[990, 1075, 'd']]);
+  wall(sc, Hc, true, 975, 403, 615, 14, CR, TI, [[440, 510, 'd']]);
+  wall(sc, Hc, false, 615, 975, 1143, 14, TI, CR);
+  wall(sc, Hc, true, 1143, 403, 725, 14, CR, MINT, [[640, 715, 'd']]);
+  wall(sc, Hc, true, 1143, 725, 1101, 14, CR, TP, [[748, 828, 'd']]);
+  wall(sc, Hc, false, 725, 1143, 1618, 14, MINT, TP);
+
+  /* --- balkon: szklana balustrada --- */
+  const gl = '#cfe6f3', gO = { mat: 3, ex: [0.26, 0, 0, 0], cast: false };
+  sc.box(770, 40, 1115, 45, 0, 1.05, gl, gO); sc.box(770, 40, 775, 232, 0, 1.05, gl, gO); sc.box(1110, 40, 1115, 232, 0, 1.05, gl, gO);
+  sc.box(770, 40, 1115, 46, 1.05, 1.09, '#8e9499'); sc.box(770, 40, 777, 232, 1.05, 1.09, '#8e9499'); sc.box(1108, 40, 1115, 232, 1.05, 1.09, '#8e9499');
+
+  /* --- grzejniki, klimatyzacja --- */
+  const RAD = '#f7f7f5';
+  sc.box(515, 255, 625, 261, 0.14, 0.72, RAD); sc.box(785, 255, 950, 261, 0.14, 0.72, RAD);
+  sc.box(520, 1604, 620, 1610, 0.14, 0.72, RAD); sc.box(830, 1604, 965, 1610, 0.14, 0.72, RAD);
+  sc.box(655, 256, 770, 276, 2.0, 2.3, '#f4f4f2');                                  // klimatyzator
+  if (full) { for (const [a, b] of [[500, 640], [772, 958], [972, 1080]]) sc.box(a, 258, b, 261, 0.2, 2.25, '#ffffff', { mat: 3, ex: [0.55, 0, 0, 0], cast: false }); }
+
+  /* --- kuchnia (zabudowa przy zachodniej ścianie; zlew bliżej okna) --- */
+  const BR = '#5b2a1b', ST = '#5f5d5b', CREAM = '#f1efe9', SIL = '#b9bec3';
+  sc.box(417, 262, 484, 568, 0.0, 0.9, [BR, BR, BR, null, BR, BR]);
+  sc.box(417, 262, 490, 568, 0.9, 0.94, ST);
+  sc.box(424, 298, 482, 412, 0.94, 0.945, '#d3d6d9');                                // zlew + ociekacz
+  sc.box(432, 306, 478, 360, 0.935, 0.945, '#8f9498');                               // komora
+  sc.cyl(430, 392, 3, 0.94, 1.2, '#cfd3d6', { seg: 10 }); sc.box(427, 392, 435, 396, 1.17, 1.2, '#cfd3d6');
+  sc.box(428, 432, 480, 500, 0.94, 0.955, '#101010');                                // płyta gazowa
+  for (const [x, y] of [[442, 448], [466, 448], [442, 484], [466, 484]]) sc.cyl(x, y, 8, 0.955, 0.985, '#262626', { seg: 12 });
+  sc.box(484, 435, 490, 495, 0.2, 0.7, '#171717'); sc.box(484, 440, 487, 490, 0.28, 0.32, '#bdc2c6');   // piekarnik
+  for (let i = 0; i < 6; i++) sc.box(484, 270 + i * 47, 487, 275 + i * 47, 0.55, 0.62, '#c9ced2', { cast: false });
+  sc.box(417, 575, 487, 755, 0.0, 0.94, '#f5f4f0'); sc.box(417, 575, 487, 755, 0.94, 0.965, '#2b2b2b');   // blat za płytą
+  sc.box(477, 690, 547, 755, 0.0, 1.85, SIL);                                        // lodówka za szafą
+  sc.box(477, 690, 547, 755, 1.85, 2.4, CREAM);
+  if (full) { sc.box(417, 262, 452, 572, 1.45, 2.2, CREAM); sc.box(417, 262, 454, 572, 1.45, 1.47, '#d9d5cc', { cast: false }); }
+
+  /* --- przedpokój: duża szafa z lustrem + mała szafka na buty RÓWNOLEGLE do niej --- */
+  sc.box(417, 757, 565, 822, 0, 2.4, '#6a3920');
+  sc.box(424, 822, 558, 824, 0.12, 2.28, '#aebfc8');                                 // lustrzane drzwi
+  if (full) sc.box(403 + 12, 840, 403 + 15, 935, 0, 2.02, '#24201e', { cast: false }); // drzwi wejściowe
+
+  /* --- salon: szafka RTV na środku ściany + drewniana zabudowa z wazonem --- */
+  sc.box(905, 856, 1030, 874, 0, 2.3, '#6a3920');                                    // zabudowa
+  sc.box(890, 806, 1050, 856, 0.0, 0.82, '#4a2a1a');                                 // szafka RTV
+  sc.box(895, 804, 1045, 806, 0.08, 0.7, '#f4f2ee', { cast: false });                // białe fronty
+  sc.cyl(1010, 832, 8, 0.82, 1.18, '#e8efe4', { seg: 14 });                          // wazon
+  sc.cyl(1010, 832, 11, 1.18, 1.52, '#8bbf6a', { seg: 8 });
+  sc.cyl(925, 832, 9, 0.82, 0.98, '#e9e6e0', { seg: 12 });
+  sc.box(1082, 310, 1086, 800, 0.95, 2.05, '#ffffff', { mat: 4, ex: [G.R3D.wz(310), (800 - 310) * G.R3D.S, 0.95, 1.1], cast: false });
+
+  /* --- WC --- */
+  sc.cyl(452, 1052, 24, 0.0, 0.4, '#f4f1ea', { seg: 16 }); sc.box(415, 1022, 432, 1082, 0.0, 1.1, '#2f221b');
+  sc.box(415, 1010, 445, 1095, 1.55, 1.72, '#3a281f');
+  sc.box(548, 1092, 606, 1135, 0.0, 0.8, '#2f221b'); sc.box(552, 1096, 602, 1131, 0.8, 0.86, '#fbfbfb');
+  sc.box(550, 1134, 604, 1136, 1.1, 1.8, '#aebfc8', { cast: false });
+
+  /* --- łazienka (bez słupka i mebla przy wejściu) --- */
+  sc.box(1008, 890, 1086, 1066, 0, 0.55, '#f8f8f7'); sc.box(1014, 896, 1080, 1060, 0.54, 0.57, '#dfe7ec', { cast: false });
+  sc.box(1008, 1036, 1012, 1066, 0.55, 1.5, '#cfe6f3', { mat: 3, ex: [0.35, 0, 0, 0], cast: false });
+  sc.box(850, 890, 915, 952, 0, 0.85, '#f4f4f3'); sc.box(852, 892, 913, 950, 0.85, 0.88, '#fff', { cast: false });   // pralka
+  sc.box(1022, 1072, 1086, 1132, 0, 0.8, '#f3f3f2'); sc.box(1028, 1078, 1082, 1128, 0.8, 0.85, '#fff');           // umywalka
+  sc.box(956, 1086, 1012, 1135, 0, 1.85, '#f6f6f5');                                                              // wysoka szafka
+  sc.box(1084, 1082, 1086, 1124, 1.1, 1.9, '#b7c7cf', { cast: false });                                          // lustro
+
+  /* --- pokój: łóżko przy ścianie zachodniej --- */
+  sc.box(417, 1325, 524, 1568, 0.1, 0.32, '#f5f5f3'); sc.box(419, 1327, 522, 1566, 0.32, 0.56, '#e9d3a8');
+  sc.box(417, 1325, 524, 1332, 0.1, 0.62, '#f5f5f3'); sc.box(417, 1561, 524, 1568, 0.1, 0.62, '#f5f5f3');
+  sc.box(415, 1385, 419, 1425, 0.6, 1.05, '#2f6f5f'); sc.box(415, 1425, 419, 1465, 0.6, 1.05, '#9fb0c2'); sc.box(415, 1465, 419, 1505, 0.6, 1.05, '#e2a823');
+  sc.box(415, 1470, 427, 1550, 1.55, 1.72, '#f6f4ef');                                                           // półka
+
+  /* --- sypialnia: łóżko wezgłowiem do ściany wschodniej, niebieskie pasy za łóżkiem --- */
+  sc.box(850, 1150, 1086, 1214, 0, 2.2, '#2f231d');                                                              // szafa
+  sc.box(935, 1214, 1005, 1216, 0.35, 2.0, '#aec2cc', { cast: false });
+  sc.box(846, 1292, 1074, 1480, 0, 0.34, '#2f231d'); sc.box(850, 1296, 1070, 1476, 0.34, 0.6, '#f6f6f4');
+  sc.box(1074, 1292, 1086, 1480, 0, 1.05, '#2f231d');
+  sc.box(1036, 1232, 1086, 1286, 0, 0.45, '#2c2420'); sc.box(1036, 1486, 1086, 1540, 0, 0.45, '#2c2420');
+  sc.box(1084, 1160, 1086, 1292, 0, 2.5, '#11a5c2', { cast: false }); sc.box(1084, 1480, 1086, 1600, 0, 2.5, '#11a5c2', { cast: false });
+  sc.box(1080, 1250, 1086, 1262, 1.0, 1.25, '#e8eef0', { cast: false }); sc.box(1080, 1504, 1086, 1516, 1.0, 1.25, '#e8eef0', { cast: false });
+
+  return sc.finish();
+}
+function wxInv(m) { return m / G.R3D.S + G.R3D.OX; }
+function wzInv(m) { return m / G.R3D.S + G.R3D.OY; }
+
+G.buildApartment = buildApartment;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+(function(){
+const cv=document.getElementById('c'),msg=document.getElementById('msg'),st=document.getElementById('st');
+let Hc=0.95,az=-0.62,el=0.85,zoom=1,px=0,py=0,sc=null,sm=null,mural=null,tm=0,busy=false;
+function build(){sc=buildApartment(Hc);sm=R3D.buildShadow(sc,2048);}
+function cam(W){const b=R3D.fitCam(sc,az,el,W,0.03);const c=R3D.makeCam(az,el,b.scale*zoom,W,b.H,[b.t[0]+b.r[0]*px+b.u[0]*py,b.t[1]+b.r[1]*px+b.u[1]*py,b.t[2]+b.r[2]*px+b.u[2]*py]);return c}
+function draw(hi){
+  const box=st.getBoundingClientRect(),W=hi?Math.min(1300,Math.max(600,Math.round(box.width*Math.min(devicePixelRatio||1,1.5)))):Math.round(Math.min(560,box.width));
+  const c=cam(W),d=R3D.render(sc,c,{ss:hi?2:1,ao:hi,bands:hi?4:1,shadow:sm,mural});
+  cv.width=c.W;cv.height=c.H;cv.getContext('2d').putImageData(new ImageData(d,c.W,c.H),0,0);
+  cv.style.aspectRatio=c.W+'/'+c.H;cv.style.width=Math.min(box.width,box.height*c.W/c.H)+'px';
+}
+function quick(){draw(false);msg.textContent='Przeciągnij – obrót · kółko – zoom';clearTimeout(tm);tm=setTimeout(()=>{msg.textContent='Dopracowuję obraz…';setTimeout(()=>{draw(true);msg.textContent='Przeciągnij – obrót · kółko – zoom · Shift/prawy – przesuń'},30)},350)}
+let drag=null;
+st.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,pan:e.shiftKey||e.button===2};st.setPointerCapture(e.pointerId);st.style.cursor='grabbing'});
+st.addEventListener('pointerup',()=>{drag=null;st.style.cursor='grab'});
+st.addEventListener('contextmenu',e=>e.preventDefault());
+let raf=0;
+st.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
+  if(drag.pan){px-=dx*0.004/zoom*2;py+=dy*0.004/zoom*2}else{az-=dx*0.008;el=Math.max(0.25,Math.min(1.5,el+dy*0.006))}
+  if(!raf)raf=requestAnimationFrame(()=>{raf=0;quick()})});
+st.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(0.6,Math.min(4,zoom*(e.deltaY<0?1.12:0.89)));quick()},{passive:false});
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-v]').forEach(x=>x.classList.remove('on'));b.classList.add('on');if(b.dataset.v==='top'){az=-0.62;el=1.5}else{az=-0.62;el=0.85}px=py=0;zoom=1;quick()});
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-m]').forEach(x=>x.classList.remove('on'));b.classList.add('on');Hc=b.dataset.m==='full'?2.5:0.95;build();quick()});
+document.getElementById('rs').onclick=()=>{az=-0.62;el=0.85;zoom=1;px=py=0;quick()};
+addEventListener('resize',()=>{clearTimeout(tm);tm=setTimeout(()=>draw(true),250)});
+setTimeout(()=>{mural=R3D.muralTex();build();quick()},30);
+})();
+</script></body></html>

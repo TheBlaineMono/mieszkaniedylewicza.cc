@@ -97,6 +97,18 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);f
 .lb button:hover{background:rgba(255,255,255,.14)}
 .lb .x{top:20px;right:20px}.lb .pv{left:20px;top:50%;margin-top:-24px}.lb .nx{right:20px;top:50%;margin-top:-24px}
 
+
+/* cookies */
+.ck{position:fixed;left:20px;right:20px;bottom:20px;z-index:90;max-width:560px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 20px 60px -20px rgba(0,0,0,.35);padding:22px 24px;display:none}
+.ck.open{display:block;animation:in .4s ease both}
+.ck h4{font:400 20px/1.2 Fraunces,Georgia,serif;margin:0 0 8px}
+.ck p{margin:0 0 16px;font-size:14px;line-height:1.6;color:var(--muted)}
+.ck-btns{display:flex;gap:10px}
+.ck-btns button{flex:1;font:500 14px Inter,sans-serif;padding:11px 16px;border-radius:99px;border:1px solid var(--text);cursor:pointer;background:transparent;color:var(--text);transition:all .2s}
+.ck-btns button:hover,.ck-btns .ok{background:var(--text);color:var(--bg)}
+.ck-btns .ok:hover{opacity:.85}
+.ck-link{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;cursor:pointer}
+@media(max-width:640px){.ck{left:12px;right:12px;bottom:12px}}
 @media(max-width:900px){
  .opis{grid-template-columns:1fr;gap:48px}.plan{position:static}
  .facts{grid-template-columns:repeat(2,1fr)}.fact:nth-child(odd){border-left:0;padding-left:0}.fact{border-top:1px solid var(--line)}
@@ -108,12 +120,16 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);f
  .mosaic{column-gap:10px}.ph{margin-bottom:10px}.ph span{opacity:1;transform:none}
  .lb .pv,.lb .nx{top:auto;bottom:24px;margin:0}
 }
+.r3{padding:72px 0}.r3-box{position:relative;max-width:900px;margin:24px auto 0;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.r3-box img{display:block;width:100%;height:auto}.r3-box iframe{display:block;width:100%;height:min(78vh,620px);border:0}
+.btn-3d{position:absolute;right:16px;bottom:16px;background:var(--acc);color:#fff;border:0;border-radius:99px;padding:12px 22px;font:600 15px Inter,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.r3-note{text-align:center;color:var(--muted);font-size:13px;margin-top:12px}
 </style>
 </head>
 <body>
 <nav><div class="wrap nav-in">
 <a class="brand" href="#top">Dylewicza 64,4 m²</a>
-<div class="links"><a href="#opis">Opis</a><a href="#galeria">Galeria</a><a href="#kontakt">Kontakt</a><a class="tel" href="tel:+48781262987">781 262 987</a></div>
+<div class="links"><a href="#opis">Opis</a><a href="#rzut3d">Rzut 3D</a><a href="#galeria">Galeria</a><a href="#kontakt">Kontakt</a><a class="tel" href="tel:+48781262987">781 262 987</a></div>
 </div></nav>
 
 <main id="top">
@@ -172,6 +188,16 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);f
 <div class="plan" data-open="images/Rzut_Mieszkania.webp"><img src="images/Rzut_Mieszkania.webp" alt="Plan mieszkania" loading="lazy"><small>Rzut mieszkania – kliknij, aby powiększyć</small></div>
 </div></section>
 
+<section id="rzut3d" class="r3"><div class="wrap">
+<div class="gal-head"><div><p class="label">Rzut 3D</p><h2>Układ mieszkania w izometrii</h2></div></div>
+<div class="r3-box" id="r3box">
+<img id="r3img" src="images/rzut-3d.webp" width="1222" height="1170" alt="Rzut izometryczny 3D mieszkania 64,4 m²" loading="lazy" decoding="async">
+<iframe id="r3frame" title="Interaktywny rzut 3D" hidden></iframe>
+<button class="btn-3d" id="r3btn" type="button">Obracaj w 3D</button>
+</div>
+<p class="r3-note">Interaktywny model ładuje się dopiero po kliknięciu. Układ i meble są poglądowe.</p>
+</div></section>
+
 <section id="galeria" class="gal"><div class="wrap">
 <div class="gal-head"><div><p class="label">Galeria</p><h2>Zobacz każde pomieszczenie</h2></div><div class="tabs" id="tabs"></div></div>
 <div class="mosaic" id="mosaic"></div>
@@ -184,7 +210,9 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--muted);f
 <p>Pytania można zadawać SMS-em. Kontakt telefoniczny po godzinie 17:00, w razie nieodebrania proszę o SMS – oddzwonię.</p>
 </div></section>
 </main>
-<footer>Mieszkanie 64,4 m² · ul. Dylewicza, Siedlce · Sprzedaż bezpośrednia</footer>
+<footer>Mieszkanie 64,4 m² · ul. Dylewicza, Siedlce · Sprzedaż bezpośrednia · <button class="ck-link" id="ckOpen">Ustawienia cookies</button></footer>
+
+<div class="ck" id="ck" role="dialog" aria-live="polite" aria-label="Zgoda na pliki cookie"><h4>Pliki cookie</h4><p>Używamy Google Analytics, aby zliczać odwiedziny i sprawdzać, które części strony Cię interesują. Dane statystyczne zbieramy tylko za Twoją zgodą. Możesz ją w każdej chwili zmienić w stopce.</p><div class="ck-btns"><button id="ckNo">Odrzucam</button><button class="ok" id="ckYes">Akceptuję</button></div></div>
 
 <div class="lb" id="lb"><button class="x" aria-label="Zamknij">×</button><button class="pv" aria-label="Poprzednie">‹</button><img alt=""><div class="lb-cap"></div><button class="nx" aria-label="Następne">›</button></div>
 
@@ -226,6 +254,28 @@ function render(){
 tabs.onclick=e=>{const b=e.target.closest('.tab');if(!b)return;cur=b.dataset.f;
  tabs.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t===b));render()};
 render();
+
+/* cookies + Google tag (Consent Mode v2) */
+const GA_ID='G-XXXXXXXXXX'; // <- wstaw swój identyfikator pomiaru z Google Analytics
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}
+gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied'});
+const ck=$('#ck'),KEY='cookie-consent';
+const getC=()=>{try{return localStorage.getItem(KEY)}catch(e){return null}};
+const setC=v=>{try{localStorage.setItem(KEY,v)}catch(e){}};
+function loadGA(){
+ if(window.__ga||!/^G-[A-Z0-9]{6,}$/.test(GA_ID)||GA_ID==='G-XXXXXXXXXX')return;window.__ga=1;
+ const t=document.createElement('script');t.async=true;t.src='https://www.googletagmanager.com/gtag/js?id='+GA_ID;document.head.appendChild(t);
+ gtag('js',new Date());gtag('config',GA_ID,{anonymize_ip:true});}
+function clearGA(){
+ document.cookie.split(';').forEach(c=>{const n=c.split('=')[0].trim();
+  if(n==='_ga'||n.startsWith('_ga_')||n==='_gid'){['','.'+location.hostname].forEach(d=>document.cookie=`${n}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/${d?';domain='+d:''}`)}})}
+function accept(){setC('granted');gtag('consent','update',{analytics_storage:'granted'});loadGA();ck.classList.remove('open')}
+function reject(){const was=getC()==='granted';setC('denied');gtag('consent','update',{analytics_storage:'denied'});if(was){clearGA();window['ga-disable-'+GA_ID]=true}ck.classList.remove('open')}
+$('#ckYes').onclick=accept;$('#ckNo').onclick=reject;$('#ckOpen').onclick=()=>ck.classList.add('open');
+const saved=getC();
+if(saved==='granted'){gtag('consent','update',{analytics_storage:'granted'});loadGA()}
+else if(saved!=='denied'){ck.classList.add('open')}
 </script>
+<script>document.getElementById('r3btn').addEventListener('click',function(){var f=document.getElementById('r3frame');f.src='rzut-3d.html';f.hidden=false;document.getElementById('r3img').hidden=true;this.hidden=true});</script>
 </body>
 </html>
